@@ -122,13 +122,10 @@ class TestIntegrationTests extends AbstractPioneerTestEngineTests {
 				.getPayload(TestExecutionResult.class)
 				.flatMap(TestExecutionResult::getThrowable)
 				.map(Throwable::getMessage);
-		String expectedMessage = String.format(
-				TimeoutExtension.TEST_RAN_TOO_LONG, "testWithTimeout_exceedsTimeout()", 1, 10);
 		//@formatter:on
-		// the message contains the actual run time, which is unpredictable, so it has to be cut off for the assertion
-		String expectedKnownPrefix = expectedMessage.substring(0, expectedMessage.length() - 6);
+
 		assertThat(failedTestMessage).isNotEmpty();
-		assertThat(failedTestMessage.get()).startsWith(expectedKnownPrefix);
+		assertThat(failedTestMessage.get()).startsWith("sleep interrupted");
 	}
 
 	// TEST CASES -------------------------------------------------------------------

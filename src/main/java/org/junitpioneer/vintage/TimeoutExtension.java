@@ -15,6 +15,8 @@ import static java.lang.System.currentTimeMillis;
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
 import java.util.Optional;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
 import org.junit.jupiter.api.extension.BeforeTestExecutionCallback;
@@ -35,15 +37,37 @@ class TimeoutExtension implements BeforeTestExecutionCallback, AfterTestExecutio
 
 	private static final Namespace NAMESPACE = Namespace.create("io", "Timeout");
 	private static final String LAUNCH_TIME_KEY = "LaunchTime";
+	private static final Timer timer = new Timer(true);
+
+	private Thread testThread;
+	private TimerTask timerTask;
 
 	@Override
 	public void beforeTestExecution(ExtensionContext context) {
 		storeNowAsLaunchTime(context);
+		annotatedTimeout(context).ifPresent(timeout -> {
+			testThread = Thread.currentThread();
+			timerTask = new TimerTask() {
+				@Override
+				public void run() {
+					if (testThread != null) {
+						testThread.interrupt();
+					}
+				}
+			};
+			timer.schedule(timerTask, timeout);
+		});
 	}
 
 	@Override
 	public void afterTestExecution(ExtensionContext context) {
-		annotatedTimeout(context).ifPresent(timeout -> failTestIfRanTooLong(context, timeout));
+		annotatedTimeout(context).ifPresent(timeout -> {
+			testThread = null;
+			if (timerTask != null) {
+				timerTask.cancel();
+			}
+			failTestIfRanTooLong(context, timeout);
+		});
 	}
 
 	private void failTestIfRanTooLong(ExtensionContext context, Long timeout) {
